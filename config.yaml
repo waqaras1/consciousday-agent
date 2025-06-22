@@ -1,0 +1,20 @@
+cookie:
+  expiry_days: 30
+  key: consciousday_key
+  name: consciousday_cookie
+credentials:
+  usernames:
+    demo:
+      email: demo@example.com
+      failed_login_attempts: 0
+      logged_in: false
+      name: Demo User
+      password: $2b$12$5xRF6ZmF4WheGTd.oA2zsujQclFNedAm8vXiR0IFcqzFkRuXnaY8.
+    prayer:
+      email: waqaras.dev@gmail.com
+      logged_in: false
+      name: gym
+      password: $2b$12$BLZ3wzHrSfkLiFi8eBJd1ur6wx8U0wE0eSF0dTuIVfv54sJQhRTdi
+preauthorized:
+  emails:
+  - demo@example.com
