@@ -10,6 +10,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import httpx
+import openai
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +45,36 @@ class ConsciousAgent:
         
         self.openrouter_api_key = openrouter_api_key
         self.openai_api_key = openai_api_key
+
+        # --- DIAGNOSTIC TEST ---
+        # The following block attempts to initialize the OpenAI client directly,
+        # bypassing LangChain to isolate the source of the 'proxies' error.
+        # The print statements will appear in the Streamlit Cloud logs.
+        try:
+            print("--- Running Diagnostic Test ---")
+            print("Attempting to initialize openai.Client directly...")
+            
+            diagnostic_key = self.openrouter_api_key or self.openai_api_key
+            diagnostic_base_url = base_url if self.openrouter_api_key else None
+            
+            # This is the crucial test. Does the base library fail?
+            client = openai.Client(
+                api_key=diagnostic_key,
+                base_url=diagnostic_base_url,
+                http_client=httpx.Client(proxies="")
+            )
+            print("SUCCESS: Direct openai.Client initialization passed.")
+            # Optional: Perform a lightweight test call
+            # client.models.list()
+            # print("SUCCESS: Test API call with direct client passed.")
+            print("--- Diagnostic Test End ---")
+        except Exception as e:
+            print(f"FAILURE: Direct openai.Client initialization failed with error: {e}")
+            print("--- Diagnostic Test End ---")
+            # We re-raise the exception to ensure the app's error handling catches it
+            # and displays it in the sidebar, which is what we are seeing.
+            raise e
+        # --- END DIAGNOSTIC TEST ---
 
         if self.openrouter_api_key:
             # Re-adding http_client with an explicit empty proxy configuration
