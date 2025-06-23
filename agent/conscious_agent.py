@@ -46,8 +46,7 @@ class ConsciousAgent:
         self.openai_api_key = openai_api_key
 
         if self.openrouter_api_key:
-            # Re-adding http_client with an explicit empty proxy configuration
-            # to override Streamlit Cloud's environment settings.
+            # Final attempt: using proxies=None for the most explicit override.
             self.llm = ChatOpenAI(
                 model=model_name,
                 temperature=0.7,
@@ -58,7 +57,7 @@ class ConsciousAgent:
                     "X-Title": "ConsciousDay Agent"
                 },
                 request_timeout=30,
-                http_client=httpx.Client(proxies="") # Explicitly disable proxies
+                http_client=httpx.Client(proxies=None) # Explicitly disable proxies
             )
             self.api_provider = "OpenRouter"
         else:
@@ -66,7 +65,7 @@ class ConsciousAgent:
                 model="gpt-3.5-turbo",
                 temperature=0.7,
                 api_key=self.openai_api_key,
-                http_client=httpx.Client(proxies="") # Also apply to default OpenAI
+                http_client=httpx.Client(proxies=None) # Also apply to default OpenAI
             )
             self.api_provider = "OpenAI"
         
