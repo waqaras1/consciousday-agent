@@ -3,14 +3,12 @@ ConsciousDay Agent - LangChain implementation for daily reflection and planning
 """
 
 import os
-import openai
 import streamlit as st
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
-import httpx
 
 # Load environment variables
 load_dotenv()
@@ -22,27 +20,22 @@ class ConsciousAgent:
     
     def __init__(self):
         """Initialize the ConsciousAgent with LangChain setup"""
-        # Check if running in the Streamlit Cloud environment
         is_deployed = "STREAMLIT_SERVER_PORT" in os.environ
 
         if is_deployed:
-            # In deployed environment, load from st.secrets
             openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY")
             openai_api_key = st.secrets.get("OPENAI_API_KEY")
             http_referer = st.secrets.get("APP_URL")
             model_name = st.secrets.get("OPENROUTER_MODEL_NAME")
         else:
-            # In local environment, load from .env file
             openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
             openai_api_key = os.getenv('OPENAI_API_KEY')
-            http_referer = "http://localhost:8501" # Default for local
+            http_referer = "http://localhost:8501"
             model_name = os.getenv('OPENROUTER_MODEL_NAME')
-        
-        # Fallback for model_name if not set anywhere
+
         if not model_name:
             model_name = "openai/gpt-3.5-turbo"
-            
-        # Safely load the base URL, with a fallback
+
         base_url = os.getenv('OPENROUTER_BASE_URL', "https://openrouter.ai/api/v1")
 
         if not openrouter_api_key and not openai_api_key:
@@ -52,7 +45,7 @@ class ConsciousAgent:
         self.openai_api_key = openai_api_key
 
         if self.openrouter_api_key:
-            # The correct way to configure ChatOpenAI for a custom provider like OpenRouter
+            # ✅ Removed http_client with proxies — this was causing the crash
             self.llm = ChatOpenAI(
                 model=model_name,
                 temperature=0.7,
@@ -62,12 +55,10 @@ class ConsciousAgent:
                     "HTTP-Referer": http_referer,
                     "X-Title": "ConsciousDay Agent"
                 },
-                request_timeout=30, # Add a 30-second timeout
-                http_client=httpx.Client(proxies="") # Explicitly disable proxies
+                request_timeout=30
             )
             self.api_provider = "OpenRouter"
         else:
-            # Use the modern ChatOpenAI class for standard OpenAI
             self.llm = ChatOpenAI(
                 model="gpt-3.5-turbo",
                 temperature=0.7,
@@ -123,7 +114,6 @@ Please provide clear, actionable insights that will help the user have a more co
                 "priorities": priorities
             })
             return response.strip()
-
         except Exception as e:
             print(f"An exception occurred in process_inputs: {e}")
             return f"Error processing inputs: {str(e)}"
@@ -137,4 +127,4 @@ Please provide clear, actionable insights that will help the user have a more co
             "provider": self.api_provider,
             "model": "openai/gpt-3.5-turbo" if self.api_provider == "OpenRouter" else "gpt-3.5-turbo",
             "temperature": 0.7
-        } 
+        }
