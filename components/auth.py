@@ -177,26 +177,45 @@ class AuthManager:
             st.error(f"Error updating user role: {e}")
             return False
     
-    def login(self, location: str = 'main', fields: dict = None):
+    def login(self, title: str, subheader: str):
         """
-        Display login form
+        Display login form using st.tabs.
         
         Args:
-            location (str): Location where to display the form ('main' or 'sidebar')
-            fields (dict): Rendered names of the fields/buttons
+            title (str): The title for the login page.
+            subheader (str): The subheader for the login page.
             
         Returns:
             tuple: (name, authentication_status, username)
         """
         if self.authenticator:
-            name, authentication_status, username = self.authenticator.login(location, fields=fields)
+            st.markdown(f"<h1 style='text-align: center;'>{title}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-bottom: 2rem;'>{subheader}</p>", unsafe_allow_html=True)
+
+            login_tab, register_tab = st.tabs(["**Login**", "**Register**"])
+
+            with login_tab:
+                # The modern way to call the login method
+                name, authentication_status, username = self.authenticator.login()
+
+            with register_tab:
+                try:
+                    if self.authenticator.register_user(pre_authorization=False):
+                        st.success('User registered successfully')
+                        # Save updated config
+                        with open(self.config_path, 'w') as file:
+                            yaml.dump(self.config, file, default_flow_style=False)
+                except Exception as e:
+                    st.error(e)
+            
             return name, authentication_status, username
+            
         return None, False, None
     
-    def logout(self, button_name: str = 'Logout', location: str = 'main', key: str = None):
+    def logout(self, button_name: str = 'Logout', location: str = 'main'):
         """Display logout button"""
         if self.authenticator:
-            self.authenticator.logout(button_name, location, key)
+            self.authenticator.logout(button_name, location=location)
     
     def register_user(self):
         """Display user registration form"""
@@ -295,7 +314,7 @@ def show_auth_page():
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Login", "Register", "Forgot Password", "Update Details", "Clear All Users"])
     
     with tab1:
-        name, authentication_status, username = auth_manager.login()
+        name, authentication_status, username = auth_manager.login("Login", "Please enter your credentials")
         
         if authentication_status == False:
             st.error('Username/password is incorrect')
