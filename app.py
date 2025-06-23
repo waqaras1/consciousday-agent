@@ -99,6 +99,28 @@ def initialize_session_state():
         st.session_state.name = None
     if 'username' not in st.session_state:
         st.session_state.username = None
+    if 'agent' not in st.session_state:
+        st.session_state.agent = None
+    if 'agent_error' not in st.session_state:
+        st.session_state.agent_error = None
+
+@st.cache_resource
+def initialize_agent():
+    """
+    Initializes the ConsciousAgent, caching the resource.
+    Returns the agent instance on success or the exception on failure.
+    """
+    try:
+        # Check if API keys are available before initializing
+        if check_api_key():
+            agent = ConsciousAgent()
+            return agent
+        else:
+            # Return a specific error if API keys are missing
+            return ValueError("API Key not found in Streamlit secrets or .env file.")
+    except Exception as e:
+        # Catch any other initialization error and return the exception
+        return e
 
 def check_api_key():
     """Check if API key is configured for local and deployed environments"""
@@ -217,6 +239,8 @@ def show_sidebar():
         # API Status
         st.markdown("### 🔧 System Status")
         agent = st.session_state.get('agent')
+        agent_error = st.session_state.get('agent_error')
+
         if agent:
             try:
                 status = agent.get_agent_status()
@@ -226,10 +250,14 @@ def show_sidebar():
                 else:
                     st.error("❌ AI Agent: Inactive")
             except Exception as e:
-                st.error("❌ AI Agent: Error")
+                st.error("❌ AI Agent: Status Error")
                 st.caption(f"Error: {str(e)}")
+        elif agent_error:
+            st.error("❌ AI Agent: Init Failed")
+            st.caption(f"Error: {str(agent_error)}")
         else:
-            st.error("❌ AI Agent: Not initialized")
+            # This case might occur if initialization is pending or in a weird state
+            st.warning("⚪ AI Agent: Initializing...")
         
         # About section
         st.markdown("---")
@@ -250,65 +278,42 @@ def main():
     """Main application function"""
     initialize_session_state()
 
-    # Ensure auth_manager is initialized once and stored in session state
+    # Initialize the authentication manager and store it in session state
     if 'auth_manager' not in st.session_state:
         st.session_state.auth_manager = AuthManager()
     auth_manager = st.session_state.auth_manager
 
-    # Initialize agent and store in session state
-    if 'agent' not in st.session_state:
-        try:
-            st.session_state.agent = ConsciousAgent()
-        except Exception as e:
-            st.session_state.agent = None
-            st.error(f"Failed to initialize AI Agent: {e}")
+    # Initialize agent and handle potential errors
+    if st.session_state.agent is None and st.session_state.agent_error is None:
+        result = initialize_agent()
+        if isinstance(result, ConsciousAgent):
+            st.session_state.agent = result
+        else:
+            st.session_state.agent_error = result
 
-    # If user is not authenticated, show the login/register page
-    if not st.session_state.get('authentication_status'):
-        
-        st.markdown("<h1 style='text-align: center;'>Welcome to ConsciousDay Agent </h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; margin-bottom: 2rem;'>Please log in or register to continue.</p>", unsafe_allow_html=True)
+    # --- Authentication Gate ---
+    name, authentication_status, username = auth_manager.login('Welcome to ConsciousDay Agent', 'Please log in or register to continue.')
 
-        login_tab, register_tab = st.tabs(["**Login**", "**Register**"])
-
-        with login_tab:
-            name, auth_status, username = auth_manager.login('main')
-            if auth_status is False:
-                st.error("Username/password is incorrect")
-            elif auth_status is None:
-                if 'login_form_rendered' in st.session_state:
-                    st.warning("Please enter your username and password")
-                st.session_state['login_form_rendered'] = True
-        
-        with register_tab:
-            auth_manager.register_user()
-
-        # If login is successful, update session state and rerun
-        if auth_status:
-            st.session_state['name'] = name
-            st.session_state['authentication_status'] = auth_status
-            st.session_state['username'] = username
-            st.rerun()
-
-    # If user is authenticated, show the main app
-    else:
-        # --- Main Application ---
+    if authentication_status:
+        # If authenticated, update session state and show the sidebar
+        st.session_state.authentication_status = True
+        st.session_state.name = name
+        st.session_state.username = username
         show_sidebar()
 
-        agent = st.session_state.get('agent')
-
-        # Check API key by checking agent status
-        if not agent or agent.get_agent_status()['status'] == 'inactive':
-            check_api_key() # Display detailed error
-            st.stop()
-        
-        # Main content area
+        # --- Page Router ---
         if st.session_state.current_page == "Home":
             show_home_page()
         elif st.session_state.current_page == "History":
             show_history_page()
-        else:
-            st.error("Page not found!")
+
+    elif authentication_status is False:
+        st.session_state.authentication_status = False
+        st.error('Username/password is incorrect')
+
+    elif authentication_status is None:
+        st.session_state.authentication_status = False
+        st.warning('Please enter your username and password')
 
 if __name__ == "__main__":
     main()
