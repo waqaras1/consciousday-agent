@@ -218,154 +218,136 @@ class AuthManager:
             self.authenticator.logout(button_name, location=location)
     
     def register_user(self):
-        """Display user registration form"""
-        if self.authenticator:
-            try:
-                result = self.authenticator.register_user('main', pre_authorization=False)
-                if result and result[1]: # Check if a username was returned
-                    email, username, name = result
-                    st.success(f'✅ User **{username}** registered successfully!')
-                    st.info(f'You can now login with username: **{username}**')
-                    # The library has updated the credentials in self.config in-place.
-                    # We just need to save the updated config object.
-                    with open(self.config_path, 'w') as file:
-                        yaml.dump(self.config, file, default_flow_style=False)
-                    st.balloons()
-            except Exception as e:
-                st.error(f"Registration error: {e}")
-    
+        """Handles user registration logic"""
+        try:
+            if self.authenticator.register_user(pre_authorization=False):
+                st.success("User registered successfully")
+                # Save updated config to file
+                with open(self.config_path, 'w') as file:
+                    yaml.dump(self.config, file, default_flow_style=False)
+        except Exception as e:
+            st.error(e)
+
     def reset_password(self):
-        """Display password reset form"""
-        if self.authenticator:
-            try:
-                username_forgot_pw, email_forgot_password, random_password = self.authenticator.forgot_password('Forgot password')
-                if username_forgot_pw:
-                    st.success('New password sent securely')
-                    # Random password to be transferred to user securely
-                    st.info(f'New password: {random_password}')
-            except Exception as e:
-                st.error(e)
-    
+        """Handles reset password logic"""
+        if self.authenticator.reset_password(st.session_state["username"]):
+            st.success("Password modified successfully")
+            # Save updated config to file
+            with open(self.config_path, 'w') as file:
+                yaml.dump(self.config, file, default_flow_style=False)
+
     def update_user_details(self):
-        """Display user details update form"""
-        if self.authenticator:
-            try:
-                if self.authenticator.update_user_details('Update user details', 'main'):
-                    st.success('Entries updated successfully')
-            except Exception as e:
-                st.error(e)
-    
+        """Handles update user details logic"""
+        if self.authenticator.update_user_details(st.session_state["username"]):
+            st.success("Entries updated successfully")
+            # Save updated config to file
+            with open(self.config_path, 'w') as file:
+                yaml.dump(self.config, file, default_flow_style=False)
+                
     def clear_all_users(self, username: str = None):
         """
-        Clear all users and reset to default configuration (admin only)
+        Clear all users from the config file, except for the demo user
         
         Args:
-            username (str): Username of the user attempting this action
-            
-        Returns:
-            bool: True if successful, False otherwise
+            username (str): The username of the user trying to clear users
         """
-        # Check if user has admin privileges
-        if username and not self.is_admin(username):
-            st.error("❌ **Access Denied**: Only administrators can perform this action.")
+        if username and self.is_admin(username):
+            if self.config and 'credentials' in self.config:
+                usernames = self.config['credentials'].get('usernames', {})
+                # Filter to keep only the 'demo' user
+                demo_user = {k: v for k, v in usernames.items() if k == 'demo'}
+                
+                self.config['credentials']['usernames'] = demo_user
+                
+                # Save updated config
+                try:
+                    with open(self.config_path, 'w') as file:
+                        yaml.dump(self.config, file, default_flow_style=False)
+                    st.success("All non-admin users cleared.")
+                    return True
+                except Exception as e:
+                    st.error(f"Error clearing users: {e}")
+                    return False
+        else:
+            st.error("You are not authorized to perform this action.")
             return False
-        
-        try:
-            # Create default config (which only has the demo user)
-            self.create_default_config()
-            st.success('✅ All users cleared successfully!')
-            st.info('System reset to default configuration with demo user only.')
-            st.balloons()
-            return True
-        except Exception as e:
-            st.error(f"Error clearing users: {e}")
-            return False
-    
+
     def upgrade_user_to_admin(self, target_username: str, admin_username: str = None) -> bool:
         """
-        Upgrade a user to admin role (admin only)
+        Upgrade a user to admin
         
         Args:
-            target_username (str): Username to upgrade to admin
-            admin_username (str): Username of the admin performing the action
+            target_username (str): The user to be upgraded
+            admin_username (str): The user performing the action
             
         Returns:
             bool: True if successful, False otherwise
         """
-        # Check if the performing user is admin
-        if admin_username and not self.is_admin(admin_username):
-            st.error("❌ **Access Denied**: Only administrators can perform this action.")
+        if admin_username and self.is_admin(admin_username):
+            if self.set_user_role(target_username, 'admin'):
+                st.success(f"User '{target_username}' has been upgraded to admin.")
+                return True
+            else:
+                st.error(f"Failed to upgrade user '{target_username}'.")
+                return False
+        else:
+            st.error("You are not authorized to perform this action.")
             return False
-        
-        return self.set_user_role(target_username, 'admin')
 
 def show_auth_page():
     """
-    Display authentication page
-    
-    Returns:
-        bool: True if user is authenticated, False otherwise
+    Shows a standalone authentication page with tabs for login, register, etc.
+    This function can be called from anywhere in the app to show the auth UI.
     """
-    st.markdown("## 🔐 Authentication")
-    
+    st.markdown("<h1 style='text-align: center;'>Welcome to ConsciousDay Agent</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; margin-bottom: 2rem;'>Please log in or register to continue.</p>", unsafe_allow_html=True)
+
     auth_manager = AuthManager()
-    
-    # Create tabs for different auth functions
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Login", "Register", "Forgot Password", "Update Details", "Clear All Users"])
-    
+
+    # Create tabs for authentication actions
+    tab1, tab2, tab3, tab4 = st.tabs(["Login", "Register", "Update Details", "Reset Password"])
+
     with tab1:
         name, authentication_status, username = auth_manager.login("Login", "Please enter your credentials")
         
         if authentication_status == False:
-            st.error('Username/password is incorrect')
+            st.error("Username/password is incorrect")
         elif authentication_status == None:
-            st.warning('Please enter your username and password')
-        elif authentication_status:
-            st.success(f'Welcome {name}')
-            return True
-    
+            st.warning("Please enter your username and password")
+        
+        if authentication_status:
+            st.session_state['name'] = name
+            st.session_state['authentication_status'] = authentication_status
+            st.session_state['username'] = username
+            st.rerun()
+
     with tab2:
         auth_manager.register_user()
-    
-    with tab3:
-        auth_manager.reset_password()
-    
-    with tab4:
-        auth_manager.update_user_details()
-    
-    with tab5:
-        st.warning("⚠️ **Danger Zone**")
-        st.markdown("This will delete **ALL** registered users and reset the system to default configuration.")
-        st.markdown("Only the demo user will remain.")
-        
-        if st.button("🗑️ Clear All Users", type="secondary"):
-            if auth_manager.clear_all_users():
-                st.rerun()
-    
-    return False
 
+    with tab3:
+        if st.session_state["authentication_status"]:
+            auth_manager.update_user_details()
+        else:
+            st.warning("Please login to update your details")
+
+    with tab4:
+        if st.session_state["authentication_status"]:
+            auth_manager.reset_password()
+        else:
+            st.warning("Please login to reset your password")
+
+# --- Decorator for authentication ---
 def require_auth():
     """
-    Decorator to require authentication for pages
-    
-    Usage:
-        @require_auth
-        def protected_page():
-            # Your page content here
-            pass
+    A decorator that checks for authentication before running a page.
+    If the user is not authenticated, it shows the login page.
     """
     def decorator(func):
         def wrapper(*args, **kwargs):
             # Check if user is authenticated
-            if 'authenticated' not in st.session_state:
-                st.session_state.authenticated = False
-            
-            if not st.session_state.authenticated:
-                st.session_state.authenticated = show_auth_page()
-                if not st.session_state.authenticated:
-                    return
-            
-            # User is authenticated, show the page
-            return func(*args, **kwargs)
+            if not st.session_state.get("authentication_status"):
+                show_auth_page()
+            else:
+                return func(*args, **kwargs)
         return wrapper
     return decorator 
