@@ -89,13 +89,13 @@ def initialize_session_state():
 
 def check_api_key():
     """Check if API key is configured for local and deployed environments"""
-    # Load secrets and environment variables safely
-    openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY") if hasattr(st, "secrets") else None
-    openai_api_key = st.secrets.get("OPENAI_API_KEY") if hasattr(st, "secrets") else None
-
-    if not openrouter_api_key:
+    try:
+        # Primarily check Streamlit secrets for deployed environment
+        openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY")
+        openai_api_key = st.secrets.get("OPENAI_API_KEY")
+    except (FileNotFoundError, AttributeError):
+        # Fallback to environment variables for local development
         openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-    if not openai_api_key:
         openai_api_key = os.getenv('OPENAI_API_KEY')
 
     if not openrouter_api_key and not openai_api_key:

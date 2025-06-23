@@ -21,24 +21,23 @@ class ConsciousAgent:
     
     def __init__(self):
         """Initialize the ConsciousAgent with LangChain setup"""
-        # Load secrets and environment variables safely for both local and deployed environments
-        openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY") if hasattr(st, "secrets") else None
-        openai_api_key = st.secrets.get("OPENAI_API_KEY") if hasattr(st, "secrets") else None
-        http_referer = st.secrets.get("APP_URL") if hasattr(st, "secrets") else None
-
-        if not openrouter_api_key:
+        # Safely load secrets for both local and deployed environments
+        try:
+            openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY")
+            openai_api_key = st.secrets.get("OPENAI_API_KEY")
+            http_referer = st.secrets.get("APP_URL")
+        except (FileNotFoundError, AttributeError):
+            # Fallback to environment variables if secrets.toml doesn't exist
             openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-        if not openai_api_key:
             openai_api_key = os.getenv('OPENAI_API_KEY')
-        if not http_referer:
             http_referer = "http://localhost:8501"
 
+        if not openrouter_api_key and not openai_api_key:
+            raise ValueError("API key not found. Set it in Streamlit secrets or a .env file.")
+        
         self.openrouter_api_key = openrouter_api_key
         self.openai_api_key = openai_api_key
 
-        if not self.openrouter_api_key and not self.openai_api_key:
-            raise ValueError("API key not found. Set it in Streamlit secrets or a .env file.")
-        
         if self.openrouter_api_key:
             # The correct way to configure ChatOpenAI for a custom provider like OpenRouter
             self.llm = ChatOpenAI(
