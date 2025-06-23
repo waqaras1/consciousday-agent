@@ -9,6 +9,7 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
+import httpx
 
 # Load environment variables
 load_dotenv()
@@ -45,7 +46,8 @@ class ConsciousAgent:
         self.openai_api_key = openai_api_key
 
         if self.openrouter_api_key:
-            # ✅ Removed http_client with proxies — this was causing the crash
+            # Re-adding http_client with an explicit empty proxy configuration
+            # to override Streamlit Cloud's environment settings.
             self.llm = ChatOpenAI(
                 model=model_name,
                 temperature=0.7,
@@ -55,14 +57,16 @@ class ConsciousAgent:
                     "HTTP-Referer": http_referer,
                     "X-Title": "ConsciousDay Agent"
                 },
-                request_timeout=30
+                request_timeout=30,
+                http_client=httpx.Client(proxies="") # Explicitly disable proxies
             )
             self.api_provider = "OpenRouter"
         else:
             self.llm = ChatOpenAI(
                 model="gpt-3.5-turbo",
                 temperature=0.7,
-                api_key=self.openai_api_key
+                api_key=self.openai_api_key,
+                http_client=httpx.Client(proxies="") # Also apply to default OpenAI
             )
             self.api_provider = "OpenAI"
         
