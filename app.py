@@ -4,17 +4,17 @@ A journaling-based AI assistant for daily reflection and planning
 """
 
 # --- Environment Neutralizer ---
-# This is the most critical part of the fix. It programmatically removes
-# any proxy settings from the environment variables. This prevents
-# libraries like httpx or requests from automatically picking up
-# proxy configurations from the Streamlit Cloud environment, which has
-# been causing the persistent "unexpected keyword argument 'proxies'" error.
+# This is the most critical part of the fix. It programmatically neutralizes
+# any proxy settings from the environment variables by setting them to empty
+# strings. This is more assertive than popping them and should prevent any
+# underlying libraries from auto-detecting proxy configurations from the
+# Streamlit Cloud environment.
 # This must be at the very top, before any other imports that might use networking.
 import os
-os.environ.pop('HTTP_PROXY', None)
-os.environ.pop('HTTPS_PROXY', None)
-os.environ.pop('http_proxy', None)
-os.environ.pop('https_proxy', None)
+os.environ['HTTP_PROXY'] = ''
+os.environ['HTTPS_PROXY'] = ''
+os.environ['http_proxy'] = ''
+os.environ['https_proxy'] = ''
 # --- End of Environment Neutralizer ---
 
 import streamlit as st
