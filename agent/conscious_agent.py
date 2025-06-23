@@ -21,25 +21,29 @@ class ConsciousAgent:
     
     def __init__(self):
         """Initialize the ConsciousAgent with LangChain setup"""
-        # Safely load secrets for both local and deployed environments
-        try:
+        # Check if running in the Streamlit Cloud environment
+        is_deployed = "STREAMLIT_SERVER_PORT" in os.environ
+
+        if is_deployed:
+            # In deployed environment, load from st.secrets
             openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY")
             openai_api_key = st.secrets.get("OPENAI_API_KEY")
             http_referer = st.secrets.get("APP_URL")
-        except (FileNotFoundError, AttributeError):
-            # Fallback to environment variables if secrets.toml doesn't exist
+            model_name = st.secrets.get("OPENROUTER_MODEL_NAME")
+        else:
+            # In local environment, load from .env file
             openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
             openai_api_key = os.getenv('OPENAI_API_KEY')
-            http_referer = "http://localhost:8501"
+            http_referer = "http://localhost:8501" # Default for local
+            model_name = os.getenv('OPENROUTER_MODEL_NAME')
+        
+        # Fallback for model_name if not set anywhere
+        if not model_name:
+            model_name = "openai/gpt-3.5-turbo"
 
         if not openrouter_api_key and not openai_api_key:
             raise ValueError("API key not found. Set it in Streamlit secrets or a .env file.")
         
-        # Safely load the model name, with a fallback to a default
-        model_name = st.secrets.get("OPENROUTER_MODEL_NAME") if hasattr(st, "secrets") else None
-        if not model_name:
-            model_name = os.getenv('OPENROUTER_MODEL_NAME', 'openai/gpt-3.5-turbo')
-
         self.openrouter_api_key = openrouter_api_key
         self.openai_api_key = openai_api_key
 
