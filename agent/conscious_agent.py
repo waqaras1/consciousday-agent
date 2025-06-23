@@ -40,6 +40,9 @@ class ConsciousAgent:
         # Fallback for model_name if not set anywhere
         if not model_name:
             model_name = "openai/gpt-3.5-turbo"
+            
+        # Safely load the base URL, with a fallback
+        base_url = os.getenv('OPENROUTER_BASE_URL', "https://openrouter.ai/api/v1")
 
         if not openrouter_api_key and not openai_api_key:
             raise ValueError("API key not found. Set it in Streamlit secrets or a .env file.")
@@ -52,12 +55,13 @@ class ConsciousAgent:
             self.llm = ChatOpenAI(
                 model=model_name,
                 temperature=0.7,
-                base_url="https://openrouter.ai/api/v1",
+                base_url=base_url,
                 api_key=self.openrouter_api_key,
                 default_headers={
                     "HTTP-Referer": http_referer,
                     "X-Title": "ConsciousDay Agent"
-                }
+                },
+                request_timeout=30 # Add a 30-second timeout
             )
             self.api_provider = "OpenRouter"
         else:
