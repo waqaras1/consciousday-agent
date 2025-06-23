@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
+import httpx
 
 # Load environment variables
 load_dotenv()
@@ -61,7 +62,8 @@ class ConsciousAgent:
                     "HTTP-Referer": http_referer,
                     "X-Title": "ConsciousDay Agent"
                 },
-                request_timeout=30 # Add a 30-second timeout
+                request_timeout=30, # Add a 30-second timeout
+                http_client=httpx.Client(proxies="") # Explicitly disable proxies
             )
             self.api_provider = "OpenRouter"
         else:
