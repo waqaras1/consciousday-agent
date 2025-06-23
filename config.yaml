@@ -13,6 +13,7 @@ credentials:
       role: admin
     waqar:
       email: waqaras.dev@gmail.com
+      failed_login_attempts: 0
       logged_in: false
       name: Waqar Ahmed
       password: $2b$12$5cYVKA4OEmK9PHv8wvlbM.OsM0aallXKa8eYmVm/7aQsAyOZb.oYK
