@@ -35,13 +35,18 @@ class ConsciousAgent:
         if not openrouter_api_key and not openai_api_key:
             raise ValueError("API key not found. Set it in Streamlit secrets or a .env file.")
         
+        # Safely load the model name, with a fallback to a default
+        model_name = st.secrets.get("OPENROUTER_MODEL_NAME") if hasattr(st, "secrets") else None
+        if not model_name:
+            model_name = os.getenv('OPENROUTER_MODEL_NAME', 'openai/gpt-3.5-turbo')
+
         self.openrouter_api_key = openrouter_api_key
         self.openai_api_key = openai_api_key
 
         if self.openrouter_api_key:
             # The correct way to configure ChatOpenAI for a custom provider like OpenRouter
             self.llm = ChatOpenAI(
-                model="openai/gpt-3.5-turbo",
+                model=model_name,
                 temperature=0.7,
                 base_url="https://openrouter.ai/api/v1",
                 api_key=self.openrouter_api_key,
