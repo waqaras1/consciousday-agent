@@ -3,8 +3,21 @@ ConsciousDay Agent - Main Streamlit Application
 A journaling-based AI assistant for daily reflection and planning
 """
 
-import streamlit as st
+# --- Environment Neutralizer ---
+# This is the most critical part of the fix. It programmatically removes
+# any proxy settings from the environment variables. This prevents
+# libraries like httpx or requests from automatically picking up
+# proxy configurations from the Streamlit Cloud environment, which has
+# been causing the persistent "unexpected keyword argument 'proxies'" error.
+# This must be at the very top, before any other imports that might use networking.
 import os
+os.environ.pop('HTTP_PROXY', None)
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('http_proxy', None)
+os.environ.pop('https_proxy', None)
+# --- End of Environment Neutralizer ---
+
+import streamlit as st
 from views.home import show_home_page
 from views.history import show_history_page
 from agent.conscious_agent import ConsciousAgent
