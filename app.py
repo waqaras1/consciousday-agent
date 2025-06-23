@@ -14,7 +14,7 @@ from components.auth import AuthManager
 # Page configuration
 st.set_page_config(
     page_title="ConsciousDay Agent",
-    page_icon="🌅",
+    page_icon="icon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -88,34 +88,24 @@ def initialize_session_state():
         st.session_state.username = None
 
 def check_api_key():
-    """Check if API key is configured"""
-    openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-    openai_api_key = os.getenv('OPENAI_API_KEY')
+    """Check if API key is configured for local and deployed environments"""
+    # Try getting key from Streamlit secrets, then from environment variables
+    try:
+        openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY")
+        openai_api_key = st.secrets.get("OPENAI_API_KEY")
+    except (AttributeError, KeyError):
+        openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
+        openai_api_key = os.getenv('OPENAI_API_KEY')
     
     if not openrouter_api_key and not openai_api_key:
         st.error("""
         ⚠️ **API Key Required**
         
-        Please set your API key in the environment variables.
+        Please set your API key.
         
-        Create a `.env` file in the project root with either:
+        - **For local development:** Create a `.env` file in the project root with your `OPENROUTER_API_KEY` or `OPENAI_API_KEY`.
         
-        For OpenRouter:
-        ```
-        OPENROUTER_API_KEY=your_openrouter_api_key_here
-        ```
-        
-        For OpenAI:
-        ```
-        OPENAI_API_KEY=your_openai_api_key_here
-        ```
-        
-        Or set it as an environment variable:
-        ```bash
-        export OPENROUTER_API_KEY=your_api_key_here
-        # or
-        export OPENAI_API_KEY=your_api_key_here
-        ```
+        - **For Streamlit Cloud deployment:** Add your API key to the "Secrets" in your app settings.
         """)
         return False
     return True
@@ -126,7 +116,7 @@ def show_sidebar():
         st.markdown(
             """
             <div style="text-align: center; padding-bottom: 20px;">
-                <h2>🌅 ConsciousDay</h2>
+                <h2>ConsciousDay</h2>
                 <p style="font-size: 14px; color: #666;">"Reflect inward. Act with clarity."</p>
             </div>
             """,
@@ -150,21 +140,58 @@ def show_sidebar():
         if auth_manager and st.session_state.get('authentication_status'):
              st.sidebar.success(f"Welcome {st.session_state.name}")
              auth_manager.logout('Logout', 'sidebar')
+             
+             # Admin section for authenticated users
+             username = st.session_state.get('username')
+             if username and auth_manager.is_admin(username):
+                 st.markdown("---")
+                 st.markdown("### ⚙️ Admin")
+                 
+                 # Show user role
+                 role = auth_manager.get_user_role(username)
+                 st.caption(f"Role: {role.title()}")
+                 
+                 # Clear all users functionality
+                 if st.button("🗑️ Clear All Users", type="secondary", help="Clear all registered users except demo"):
+                     if auth_manager.clear_all_users(username):
+                         st.rerun()
+             elif username:
+                 # Show regular user info
+                 role = auth_manager.get_user_role(username)
+                 st.caption(f"Role: {role.title()}")
 
         st.markdown("---")
         
         # Quick stats in sidebar
         try:
             db = DatabaseManager()
-            stats = db.get_database_stats()
-            
-            st.markdown("### 📊 Quick Stats")
-            st.metric("Total Entries", stats['total_entries'])
-            
-            if stats['latest_date']:
-                from datetime import datetime
-                latest = datetime.strptime(stats['latest_date'], "%Y-%m-%d").strftime("%b %d")
-                st.metric("Last Entry", latest)
+            user_id = st.session_state.get('username')
+            if user_id:
+                stats = db.get_database_stats(user_id)
+                
+                st.markdown("### 📊 Quick Stats")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Entries", stats['total_entries'])
+                
+                with col2:
+                    if stats['latest_date']:
+                        from datetime import datetime
+                        latest = datetime.strptime(stats['latest_date'], "%Y-%m-%d").strftime("%b %d")
+                        st.metric("Last Entry", latest)
+                    else:
+                        st.metric("Last Entry", "None")
+
+                with col3:
+                    if stats['earliest_date']:
+                        from datetime import datetime
+                        earliest = datetime.strptime(stats['earliest_date'], "%Y-%m-%d").strftime("%b %d")
+                        st.metric("Started", earliest)
+                    else:
+                        st.metric("Started", "None")
+
         except Exception as e:
             st.error(f"Error loading stats: {e}")
         
@@ -172,17 +199,20 @@ def show_sidebar():
         
         # API Status
         st.markdown("### 🔧 System Status")
-        try:
-            agent = ConsciousAgent()
-            status = agent.get_agent_status()
-            if status['status'] == 'active':
-                st.success(f"✅ AI Agent: Active ({status['provider']})")
-                st.caption(f"Model: {status['model']}")
-            else:
-                st.error("❌ AI Agent: Inactive")
-        except Exception as e:
-            st.error("❌ AI Agent: Error")
-            st.caption(f"Error: {str(e)}")
+        agent = st.session_state.get('agent')
+        if agent:
+            try:
+                status = agent.get_agent_status()
+                if status['status'] == 'active':
+                    st.success(f"✅ AI Agent: Active ({status['provider']})")
+                    st.caption(f"Model: {status['model']}")
+                else:
+                    st.error("❌ AI Agent: Inactive")
+            except Exception as e:
+                st.error("❌ AI Agent: Error")
+                st.caption(f"Error: {str(e)}")
+        else:
+            st.error("❌ AI Agent: Not initialized")
         
         # About section
         st.markdown("---")
@@ -196,7 +226,7 @@ def show_sidebar():
         • Plan your priorities
         • Get personalized insights
         
-        Built with Streamlit, LangChain, and OpenAI.
+        Built by Waqar Ahmed with Streamlit, LangChain, and OpenRouterAPI.
         """)
 
 def main():
@@ -207,6 +237,14 @@ def main():
     if 'auth_manager' not in st.session_state:
         st.session_state.auth_manager = AuthManager()
     auth_manager = st.session_state.auth_manager
+
+    # Initialize agent and store in session state
+    if 'agent' not in st.session_state:
+        try:
+            st.session_state.agent = ConsciousAgent()
+        except Exception as e:
+            st.session_state.agent = None
+            st.error(f"Failed to initialize AI Agent: {e}")
 
     # If user is not authenticated, show the login/register page
     if not st.session_state.get('authentication_status'):
@@ -240,8 +278,11 @@ def main():
         # --- Main Application ---
         show_sidebar()
 
-        # Check API key
-        if not check_api_key():
+        agent = st.session_state.get('agent')
+
+        # Check API key by checking agent status
+        if not agent or agent.get_agent_status()['status'] == 'inactive':
+            check_api_key() # Display detailed error
             st.stop()
         
         # Main content area
@@ -253,4 +294,4 @@ def main():
             st.error("Page not found!")
 
 if __name__ == "__main__":
-    main() 
+    main()

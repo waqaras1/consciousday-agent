@@ -43,6 +43,9 @@ class AuthManager:
             with open(self.config_path) as file:
                 self.config = yaml.load(file, Loader=SafeLoader)
         
+        # Update existing configs to include roles if missing
+        self.update_existing_users_with_roles()
+        
         # Create authenticator
         self.authenticator = stauth.Authenticate(
             self.config['credentials'],
@@ -51,6 +54,31 @@ class AuthManager:
             self.config['cookie']['expiry_days'],
             self.config['preauthorized']
         )
+    
+    def update_existing_users_with_roles(self):
+        """Update existing users to include roles if missing"""
+        if not self.config or 'credentials' not in self.config:
+            return
+        
+        usernames = self.config.get('credentials', {}).get('usernames', {})
+        updated = False
+        
+        for username, user_data in usernames.items():
+            if 'role' not in user_data:
+                # Set demo user as admin, others as regular users
+                if username == 'demo':
+                    user_data['role'] = 'admin'
+                else:
+                    user_data['role'] = 'user'
+                updated = True
+        
+        # Save updated config if changes were made
+        if updated:
+            try:
+                with open(self.config_path, 'w') as file:
+                    yaml.dump(self.config, file, default_flow_style=False)
+            except Exception as e:
+                st.error(f"Error updating user roles: {e}")
     
     def create_default_config(self):
         """Create default configuration file"""
@@ -63,7 +91,8 @@ class AuthManager:
                     'demo': {
                         'email': 'demo@example.com',
                         'name': 'Demo User',
-                        'password': hashed_password[0]
+                        'password': hashed_password[0],
+                        'role': 'admin'  # Demo user is admin by default
                     }
                 }
             },
@@ -80,6 +109,73 @@ class AuthManager:
         with open(self.config_path, 'w') as file:
             yaml.dump(config, file, default_flow_style=False)
         self.config = config # Also update the in-memory config
+    
+    def is_admin(self, username: str) -> bool:
+        """
+        Check if a user has admin privileges
+        
+        Args:
+            username (str): Username to check
+            
+        Returns:
+            bool: True if user is admin, False otherwise
+        """
+        if not self.config or 'credentials' not in self.config:
+            return False
+        
+        usernames = self.config.get('credentials', {}).get('usernames', {})
+        user_data = usernames.get(username, {})
+        
+        # Check if user has admin role
+        return user_data.get('role') == 'admin'
+    
+    def get_user_role(self, username: str) -> str:
+        """
+        Get the role of a user
+        
+        Args:
+            username (str): Username to get role for
+            
+        Returns:
+            str: User role ('admin' or 'user'), defaults to 'user'
+        """
+        if not self.config or 'credentials' not in self.config:
+            return 'user'
+        
+        usernames = self.config.get('credentials', {}).get('usernames', {})
+        user_data = usernames.get(username, {})
+        
+        return user_data.get('role', 'user')
+    
+    def set_user_role(self, username: str, role: str) -> bool:
+        """
+        Set the role of a user (admin only)
+        
+        Args:
+            username (str): Username to set role for
+            role (str): Role to set ('admin' or 'user')
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.config or 'credentials' not in self.config:
+            return False
+        
+        usernames = self.config.get('credentials', {}).get('usernames', {})
+        if username not in usernames:
+            return False
+        
+        # Update user role
+        usernames[username]['role'] = role
+        
+        # Save updated config
+        try:
+            with open(self.config_path, 'w') as file:
+                yaml.dump(self.config, file, default_flow_style=False)
+            return True
+        except Exception as e:
+            st.error(f"Error updating user role: {e}")
+            return False
     
     def login(self, location: str = 'main', fields: dict = None):
         """
@@ -139,6 +235,50 @@ class AuthManager:
                     st.success('Entries updated successfully')
             except Exception as e:
                 st.error(e)
+    
+    def clear_all_users(self, username: str = None):
+        """
+        Clear all users and reset to default configuration (admin only)
+        
+        Args:
+            username (str): Username of the user attempting this action
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Check if user has admin privileges
+        if username and not self.is_admin(username):
+            st.error("❌ **Access Denied**: Only administrators can perform this action.")
+            return False
+        
+        try:
+            # Create default config (which only has the demo user)
+            self.create_default_config()
+            st.success('✅ All users cleared successfully!')
+            st.info('System reset to default configuration with demo user only.')
+            st.balloons()
+            return True
+        except Exception as e:
+            st.error(f"Error clearing users: {e}")
+            return False
+    
+    def upgrade_user_to_admin(self, target_username: str, admin_username: str = None) -> bool:
+        """
+        Upgrade a user to admin role (admin only)
+        
+        Args:
+            target_username (str): Username to upgrade to admin
+            admin_username (str): Username of the admin performing the action
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Check if the performing user is admin
+        if admin_username and not self.is_admin(admin_username):
+            st.error("❌ **Access Denied**: Only administrators can perform this action.")
+            return False
+        
+        return self.set_user_role(target_username, 'admin')
 
 def show_auth_page():
     """
@@ -152,7 +292,7 @@ def show_auth_page():
     auth_manager = AuthManager()
     
     # Create tabs for different auth functions
-    tab1, tab2, tab3, tab4 = st.tabs(["Login", "Register", "Forgot Password", "Update Details"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Login", "Register", "Forgot Password", "Update Details", "Clear All Users"])
     
     with tab1:
         name, authentication_status, username = auth_manager.login()
@@ -173,6 +313,15 @@ def show_auth_page():
     
     with tab4:
         auth_manager.update_user_details()
+    
+    with tab5:
+        st.warning("⚠️ **Danger Zone**")
+        st.markdown("This will delete **ALL** registered users and reset the system to default configuration.")
+        st.markdown("Only the demo user will remain.")
+        
+        if st.button("🗑️ Clear All Users", type="secondary"):
+            if auth_manager.clear_all_users():
+                st.rerun()
     
     return False
 

@@ -14,6 +14,12 @@ def create_morning_form() -> Optional[Dict]:
     Returns:
         Dict: Form data if submitted, None otherwise
     """
+    # Get current user ID from session state
+    user_id = st.session_state.get('username')
+    if not user_id:
+        st.error("User not authenticated. Please log in.")
+        return None
+    
     st.title("🌅 ConsciousDay Agent")
     st.markdown("_\"Reflect inward. Act with clarity.\"_")
     
@@ -29,7 +35,7 @@ def create_morning_form() -> Optional[Dict]:
     db = DatabaseManager()
     date_str = selected_date.strftime("%Y-%m-%d")
     
-    if db.entry_exists(date_str):
+    if db.entry_exists(user_id, date_str):
         st.warning(f"⚠️ An entry already exists for {date_str}. You can view it in the History section.")
         return None
     
@@ -108,11 +114,17 @@ def create_date_selector() -> Optional[str]:
     Returns:
         str: Selected date string if a date is selected, None otherwise
     """
+    # Get current user ID from session state
+    user_id = st.session_state.get('username')
+    if not user_id:
+        st.error("User not authenticated. Please log in.")
+        return None
+    
     st.markdown("### 📅 Select Date to View")
     
     from database.db_operations import DatabaseManager
     db = DatabaseManager()
-    available_dates = db.get_available_dates()
+    available_dates = db.get_available_dates(user_id)
     
     if not available_dates:
         st.info("No entries found. Create your first reflection!")
@@ -142,9 +154,15 @@ def create_quick_stats():
     """
     Display quick statistics about the user's journal entries
     """
+    # Get current user ID from session state
+    user_id = st.session_state.get('username')
+    if not user_id:
+        st.error("User not authenticated. Please log in.")
+        return
+    
     from database.db_operations import DatabaseManager
     db = DatabaseManager()
-    stats = db.get_database_stats()
+    stats = db.get_database_stats(user_id)
     
     with st.container(border=True):
         st.markdown("### 📊 Quick Stats")

@@ -4,6 +4,7 @@ ConsciousDay Agent - LangChain implementation for daily reflection and planning
 
 import os
 import openai
+import streamlit as st
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
@@ -20,11 +21,16 @@ class ConsciousAgent:
     
     def __init__(self):
         """Initialize the ConsciousAgent with LangChain setup"""
-        self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        # Try getting key from Streamlit secrets, then from environment variables
+        try:
+            self.openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY")
+            self.openai_api_key = st.secrets.get("OPENAI_API_KEY")
+        except (AttributeError, KeyError):
+            self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
+            self.openai_api_key = os.getenv('OPENAI_API_KEY')
         
         if not self.openrouter_api_key and not self.openai_api_key:
-            raise ValueError("Neither OPENROUTER_API_KEY nor OPENAI_API_KEY found in environment variables")
+            raise ValueError("Neither OPENROUTER_API_KEY nor OPENAI_API_KEY found in environment variables or Streamlit secrets")
         
         if self.openrouter_api_key:
             # The correct way to configure ChatOpenAI for a custom provider like OpenRouter

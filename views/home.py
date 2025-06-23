@@ -13,6 +13,12 @@ def show_home_page():
     """
     Display the home page with form and AI processing
     """
+    # Get current user ID from session state
+    user_id = st.session_state.get('username')
+    if not user_id:
+        st.error("User not authenticated. Please log in.")
+        return
+    
     # Initialize session state
     if 'ai_response' not in st.session_state:
         st.session_state.ai_response = None
@@ -36,8 +42,11 @@ def show_home_page():
         display_loading_message()
         
         try:
-            # Initialize AI agent
-            agent = ConsciousAgent()
+            # Get AI agent from session state
+            agent = st.session_state.get('agent')
+            if not agent:
+                display_error_message("AI Agent not initialized. Please check the configuration.")
+                st.stop()
             
             # Process inputs with AI
             ai_response = agent.process_inputs(
@@ -72,6 +81,7 @@ def show_home_page():
             strategy = '\n'.join(strategy_lines).strip()
             
             success = db.save_entry(
+                user_id=user_id,
                 date=form_data['date'],
                 journal=form_data['journal'],
                 intention=form_data['intention'],

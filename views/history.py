@@ -16,6 +16,12 @@ def show_history_page():
     2. Displaying a single, full entry view.
     """
     
+    # Get current user ID from session state
+    user_id = st.session_state.get('username')
+    if not user_id:
+        st.error("User not authenticated. Please log in.")
+        return
+    
     # State 2: Display a single, full entry view if one is selected.
     if 'view_entry' in st.session_state and st.session_state.view_entry is not None:
         st.markdown("## 📖 Full Entry View")
@@ -34,7 +40,7 @@ def show_history_page():
     st.markdown("---")
     
     db = DatabaseManager()
-    all_entries = db.get_all_entries()
+    all_entries = db.get_all_entries(user_id)
     
     if not all_entries:
         display_empty_state()
@@ -48,7 +54,7 @@ def show_history_page():
         selected_date = create_date_selector()
         
         if selected_date:
-            entry = db.get_entry_by_date(selected_date)
+            entry = db.get_entry_by_date(user_id, selected_date)
             if entry:
                 display_entry(entry)
             else:
@@ -93,7 +99,7 @@ def show_history_page():
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col2:
                     if st.button(f"🗑️ Delete", key=f"delete_{entry['id']}"):
-                        if db.delete_entry(entry['id']):
+                        if db.delete_entry(user_id, entry['id']):
                             st.success("Entry deleted successfully!")
                             st.rerun()
                         else:
