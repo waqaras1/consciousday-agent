@@ -32,6 +32,14 @@ class ConsciousAgent:
         if not self.openrouter_api_key and not self.openai_api_key:
             raise ValueError("Neither OPENROUTER_API_KEY nor OPENAI_API_KEY found in environment variables or Streamlit secrets")
         
+        # Determine the correct referer URL for OpenRouter
+        try:
+            # Use a secret for the deployed app's URL
+            http_referer = st.secrets["APP_URL"]
+        except (AttributeError, KeyError):
+            # Fallback for local development
+            http_referer = "http://localhost:8501"
+
         if self.openrouter_api_key:
             # The correct way to configure ChatOpenAI for a custom provider like OpenRouter
             self.llm = ChatOpenAI(
@@ -40,7 +48,7 @@ class ConsciousAgent:
                 base_url="https://openrouter.ai/api/v1",
                 api_key=self.openrouter_api_key,
                 default_headers={
-                    "HTTP-Referer": "http://localhost:8501",
+                    "HTTP-Referer": http_referer,
                     "X-Title": "ConsciousDay Agent"
                 }
             )
