@@ -66,12 +66,21 @@ class ConsciousAgent:
         # Try OpenRouter first, then fallback to OpenAI
         if openrouter_api_key:
             try:
+                # Try with the specified model first
                 self._setup_openrouter(openrouter_api_key)
                 return
             except Exception as e:
-                logger.warning(f"Failed to setup OpenRouter: {e}")
-                if not openai_api_key:
-                    raise ValueError("OpenRouter setup failed and no OpenAI API key available")
+                logger.warning(f"Failed to setup OpenRouter with model {self.model_name}: {e}")
+                # Try with a fallback model
+                try:
+                    self.model_name = "openai/gpt-3.5-turbo"
+                    self._setup_openrouter(openrouter_api_key)
+                    logger.info(f"Successfully initialized OpenRouter with fallback model: {self.model_name}")
+                    return
+                except Exception as e2:
+                    logger.error(f"Failed to setup OpenRouter with fallback model: {e2}")
+                    if not openai_api_key:
+                        raise ValueError("OpenRouter setup failed and no OpenAI API key available")
         
         if openai_api_key:
             try:
@@ -86,12 +95,15 @@ class ConsciousAgent:
     def _setup_openrouter(self, api_key: str):
         """Setup OpenRouter configuration"""
         try:
-            # Create HTTP client with explicit proxy settings
-            http_client = httpx.Client(
-                proxies=None,  # Explicitly disable proxies
-                timeout=30.0,
-                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
-            )
+            # Validate API key
+            if not api_key or not api_key.strip():
+                raise ValueError("OpenRouter API key is empty or invalid")
+            
+            # Validate model name
+            if not self.model_name or not self.model_name.strip():
+                raise ValueError("Model name is empty or invalid")
+            
+            logger.info(f"Attempting to initialize OpenRouter with model: {self.model_name}")
             
             self.llm = ChatOpenAI(
                 model=self.model_name,
@@ -102,8 +114,7 @@ class ConsciousAgent:
                     "HTTP-Referer": self.http_referer,
                     "X-Title": "ConsciousDay Agent"
                 },
-                request_timeout=30,
-                http_client=http_client
+                request_timeout=30
             )
             self.api_provider = "OpenRouter"
             logger.info(f"Successfully initialized OpenRouter with model: {self.model_name}")
@@ -115,18 +126,10 @@ class ConsciousAgent:
     def _setup_openai(self, api_key: str):
         """Setup OpenAI configuration"""
         try:
-            # Create HTTP client with explicit proxy settings
-            http_client = httpx.Client(
-                proxies=None,  # Explicitly disable proxies
-                timeout=30.0,
-                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
-            )
-            
             self.llm = ChatOpenAI(
                 model="gpt-3.5-turbo",
                 temperature=0.7,
-                api_key=api_key,
-                http_client=http_client
+                api_key=api_key
             )
             self.api_provider = "OpenAI"
             self.model_name = "gpt-3.5-turbo"
@@ -172,7 +175,7 @@ Please provide clear, actionable insights that will help the user have a more co
         )
         
         output_parser = StrOutputParser()
-        self.chain = self.prompt_template | self.llm | output_parser
+        self.chain = self.prompt_template | self.llm | (lambda x: output_parser.parse(x))
     
     def process_inputs(self, journal: str, intention: str, dream: str, priorities: str) -> str:
         """

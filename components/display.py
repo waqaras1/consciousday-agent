@@ -319,10 +319,11 @@ def display_entry(entry: Dict):
                 <h3 style="color: #DC2626; margin: 0 0 15px 0; font-size: 20px;">
                     ⚡ Top 3 Priorities
                 </h3>
-                <div style="color: #374151; line-height: 1.6; font-size: 15px;">
+                <div style="color: #374151; font-size: 14px; line-height: 1.5;">
+                    {entry['priorities'].replace(chr(10), '<br>')}
+                </div>
+            </div>
             """, unsafe_allow_html=True)
-            st.write(entry['priorities'])
-            st.markdown("</div></div>", unsafe_allow_html=True)
     
     with tab4:
         if entry['reflection'] and entry['strategy']:
@@ -419,7 +420,7 @@ def display_entry_summary(entry: Dict):
                         ⚡ Priorities
                     </h4>
                     <div style="color: #374151; font-size: 14px; line-height: 1.5;">
-                        {entry['priorities'].replace('\n', '<br>')}
+                        {entry['priorities'].replace(chr(10), '<br>')}
                     </div>
                 </div>
             </div>
@@ -526,6 +527,15 @@ def display_error_message(error: str):
     Args:
         error (str): Error message to display
     """
+    # Define the CSS animation separately to avoid f-string issues
+    css_animation = """
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+    """
+    
     st.markdown(f"""
     <div style="
         background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
@@ -552,11 +562,7 @@ def display_error_message(error: str):
     </div>
     
     <style>
-    @keyframes shake {{
-        0%, 100% {{ transform: translateX(0); }}
-        25% {{ transform: translateX(-5px); }}
-        75% {{ transform: translateX(5px); }}
-    }}
+    {css_animation}
     </style>
     """, unsafe_allow_html=True)
 
