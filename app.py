@@ -292,7 +292,8 @@ def main():
             st.session_state.agent_error = result
 
     # --- Authentication Gate ---
-    name, authentication_status, username = auth_manager.login('Welcome to ConsciousDay Agent', 'Please log in or register to continue.')
+    login_message = 'Please log in or register to continue.' if not st.session_state.get("authentication_status") else ''
+    name, authentication_status, username = auth_manager.login('Welcome to ConsciousDay Agent', login_message)
 
     if authentication_status:
         # If authenticated, update session state and show the sidebar

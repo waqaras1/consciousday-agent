@@ -238,24 +238,30 @@ class AuthManager:
             st.markdown(f"<h1 style='text-align: center;'>{title}</h1>", unsafe_allow_html=True)
             st.markdown(f"<p style='text-align: center; margin-bottom: 2rem;'>{subheader}</p>", unsafe_allow_html=True)
 
-            login_tab, register_tab = st.tabs(["**Login**", "**Register**"])
+            # Only show tabs if not authenticated
+            if not st.session_state.get("authentication_status"):
+                login_tab, register_tab = st.tabs(["**Login**", "**Register**"])
 
-            with login_tab:
-                # The modern way to call the login method
-                name, authentication_status, username = self.authenticator.login()
+                with login_tab:
+                    name, authentication_status, username = self.authenticator.login()
 
-            with register_tab:
-                try:
-                    if self.authenticator.register_user(pre_authorization=False):
-                        st.success('User registered successfully')
-                        # Save updated config
-                        with open(self.config_path, 'w', encoding='utf-8') as file:
-                            yaml.dump(self.config, file, default_flow_style=False)
-                        logger.info(f"New user registered: {username}")
-                except Exception as e:
-                    logger.error(f"Registration error: {e}")
-                    st.error(str(e))
-            
+                with register_tab:
+                    try:
+                        if self.authenticator.register_user(pre_authorization=False):
+                            st.success('User registered successfully')
+                            # Save updated config
+                            with open(self.config_path, 'w', encoding='utf-8') as file:
+                                yaml.dump(self.config, file, default_flow_style=False)
+                            logger.info(f"New user registered: {username}")
+                    except Exception as e:
+                        logger.error(f"Registration error: {e}")
+                        st.error(str(e))
+            else:
+                # If already authenticated, don't show tabs, just return current session info
+                name = st.session_state.get('name')
+                authentication_status = st.session_state.get('authentication_status')
+                username = st.session_state.get('username')
+
             return name, authentication_status, username
             
         except Exception as e:
