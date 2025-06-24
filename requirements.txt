@@ -1,9 +1,18 @@
+# Streamlit app core
 streamlit==1.36.0
+streamlit-authenticator==0.3.2
+
+# Langchain & related dependencies
 langchain==0.0.331
 langchain-community==0.0.19
 langchain-openai==0.0.5
-openai==0.28.1
+openai>=1.10.0,<2.0.0         # Fixed: compatible with langchain-openai
+
+# Environment config
 python-dotenv==1.0.0
-streamlit-authenticator==0.3.2
+
+# Dev/testing
 pytest==7.4.3
+
+# Misc
 PyYAML==6.0.1
