@@ -1,15 +1,12 @@
 """
-ConsciousDay Agent - LangChain implementation for daily reflection and planning
+ConsciousDay Agent - OpenAI client implementation for daily reflection and planning
 """
 
 import os
 import streamlit as st
 from typing import Dict, Any, Optional
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from openai import OpenAI
 from dotenv import load_dotenv
-import httpx
 import logging
 
 # Configure logging
@@ -25,8 +22,8 @@ class ConsciousAgent:
     """
     
     def __init__(self):
-        """Initialize the ConsciousAgent with LangChain setup"""
-        self.llm = None
+        """Initialize the ConsciousAgent with OpenAI client setup"""
+        self.client = None
         self.api_provider = None
         self.model_name = None
         self.base_url = None
@@ -35,11 +32,8 @@ class ConsciousAgent:
         # Initialize the agent
         self._setup_agent()
         
-        if not self.llm:
+        if not self.client:
             raise ValueError("Failed to initialize AI agent. Please check your API configuration.")
-        
-        # Setup the processing chain
-        self._setup_chain()
     
     def _setup_agent(self):
         """Setup the AI agent with proper configuration"""
@@ -105,16 +99,13 @@ class ConsciousAgent:
             
             logger.info(f"Attempting to initialize OpenRouter with model: {self.model_name}")
             
-            self.llm = ChatOpenAI(
-                model=self.model_name,
-                temperature=0.7,
+            self.client = OpenAI(
                 base_url=self.base_url,
                 api_key=api_key,
                 default_headers={
                     "HTTP-Referer": self.http_referer,
                     "X-Title": "ConsciousDay Agent"
-                },
-                request_timeout=30
+                }
             )
             self.api_provider = "OpenRouter"
             logger.info(f"Successfully initialized OpenRouter with model: {self.model_name}")
@@ -126,11 +117,7 @@ class ConsciousAgent:
     def _setup_openai(self, api_key: str):
         """Setup OpenAI configuration"""
         try:
-            self.llm = ChatOpenAI(
-                model="gpt-3.5-turbo",
-                temperature=0.7,
-                api_key=api_key
-            )
+            self.client = OpenAI(api_key=api_key)
             self.api_provider = "OpenAI"
             self.model_name = "gpt-3.5-turbo"
             logger.info("Successfully initialized OpenAI")
@@ -138,44 +125,6 @@ class ConsciousAgent:
         except Exception as e:
             logger.error(f"Error setting up OpenAI: {e}")
             raise
-    
-    def _setup_chain(self):
-        """Setup the processing chain"""
-        self.prompt_template = ChatPromptTemplate.from_template(
-            template="""
-You are a daily reflection and planning assistant. Your goal is to:
-
-Reflect on the user's journal and dream input
-Interpret the user's emotional and mental state
-Understand their intention and 3 priorities
-Generate a practical, energy-aligned strategy for their day
-
-INPUT:
-Morning Journal: {journal}
-Intention: {intention}
-Dream: {dream}
-Top 3 Priorities: {priorities}
-
-OUTPUT:
-
-**Inner Reflection Summary**
-[Provide a thoughtful analysis of the user's emotional and mental state based on their journal entry]
-
-**Dream Interpretation Summary**
-[Offer insights into the dream's potential meaning and how it might relate to their current situation]
-
-**Energy/Mindset Insight**
-[Analyze their energy levels and mindset, providing guidance on how to approach the day]
-
-**Suggested Day Strategy (time-aligned tasks)**
-[Create a practical, time-based strategy that aligns with their energy and priorities]
-
-Please provide clear, actionable insights that will help the user have a more conscious and productive day.
-"""
-        )
-        
-        output_parser = StrOutputParser()
-        self.chain = self.prompt_template | self.llm | (lambda x: output_parser.parse(x))
     
     def process_inputs(self, journal: str, intention: str, dream: str, priorities: str) -> str:
         """
@@ -195,18 +144,53 @@ Please provide clear, actionable insights that will help the user have a more co
             if not journal.strip() or not intention.strip() or not priorities.strip():
                 raise ValueError("Missing required input fields")
             
-            # Process with AI
-            response = self.chain.invoke({
-                "journal": journal.strip(),
-                "intention": intention.strip(),
-                "dream": dream.strip() if dream.strip() else "No dream recorded",
-                "priorities": priorities.strip()
-            })
+            # Create the prompt
+            prompt = f"""
+You are a daily reflection and planning assistant. Your goal is to:
+
+Reflect on the user's journal and dream input
+Interpret the user's emotional and mental state
+Understand their intention and 3 priorities
+Generate a practical, energy-aligned strategy for their day
+
+INPUT:
+Morning Journal: {journal.strip()}
+Intention: {intention.strip()}
+Dream: {dream.strip() if dream.strip() else "No dream recorded"}
+Top 3 Priorities: {priorities.strip()}
+
+OUTPUT:
+
+**Inner Reflection Summary**
+[Provide a thoughtful analysis of the user's emotional and mental state based on their journal entry]
+
+**Dream Interpretation Summary**
+[Offer insights into the dream's potential meaning and how it might relate to their current situation]
+
+**Energy/Mindset Insight**
+[Analyze their energy levels and mindset, providing guidance on how to approach the day]
+
+**Suggested Day Strategy (time-aligned tasks)**
+[Create a practical, time-based strategy that aligns with their energy and priorities]
+
+Please provide clear, actionable insights that will help the user have a more conscious and productive day.
+"""
             
-            if not response or not response.strip():
+            # Process with AI
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": "You are a helpful daily reflection and planning assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1000
+            )
+            
+            if not response.choices or not response.choices[0].message.content:
                 raise ValueError("AI returned empty response")
             
-            return response.strip()
+            return response.choices[0].message.content.strip()
             
         except Exception as e:
             logger.error(f"Error processing inputs: {e}")
@@ -221,7 +205,7 @@ Please provide clear, actionable insights that will help the user have a more co
         """
         try:
             return {
-                "status": "active" if self.llm else "inactive",
+                "status": "active" if self.client else "inactive",
                 "provider": self.api_provider or "unknown",
                 "model": self.model_name or "unknown",
                 "temperature": 0.7,
@@ -244,12 +228,16 @@ Please provide clear, actionable insights that will help the user have a more co
             bool: True if connection is successful, False otherwise
         """
         try:
-            if not self.llm:
+            if not self.client:
                 return False
             
             # Simple test with minimal input
-            test_response = self.llm.invoke("Hello")
-            return bool(test_response and test_response.content.strip())
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": "Hello"}],
+                max_tokens=10
+            )
+            return bool(response.choices and response.choices[0].message.content.strip())
             
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
