@@ -8,7 +8,7 @@ langchain-community==0.0.19
 langchain-openai==0.0.5
 openai>=1.10.0,<2.0.0         # Fixed: compatible with langchain-openai
 
-# Environment config
+# Environment configs
 python-dotenv==1.0.0
 
 # Dev/testing

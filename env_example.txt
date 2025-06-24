@@ -1,9 +1,83 @@
+# ConsciousDay Agent - Environment Configuration
+# Copy this file to .env and fill in your actual values
+
+# =============================================================================
 # API Configuration
-# Primary: OpenRouter API (recommended)
+# =============================================================================
+
+# Primary: OpenRouter API (recommended for better model selection)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 
-# Alternative: OpenAI API
+# Alternative: OpenAI API (fallback option)
 # OPENAI_API_KEY=your_openai_api_key_here
 
-# Alternative: Together AI
-# TOGETHER_API_KEY=your_together_api_key_here 
+# =============================================================================
+# OpenRouter Configuration (if using OpenRouter)
+# =============================================================================
+
+# Model to use (default: openai/gpt-3.5-turbo)
+# Other options: openai/gpt-4, anthropic/claude-3-sonnet, meta-llama/llama-2-70b-chat
+OPENROUTER_MODEL_NAME=openai/gpt-3.5-turbo
+
+# Base URL (usually don't need to change this)
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+
+# =============================================================================
+# Application Configuration
+# =============================================================================
+
+# App URL (for OpenRouter referrer header)
+# For local development: http://localhost:8501
+# For deployment: https://your-app-name.streamlit.app
+APP_URL=http://localhost:8501
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+
+# Database file path (optional, defaults to entries.db)
+# DB_PATH=entries.db
+
+# =============================================================================
+# Security Configuration
+# =============================================================================
+
+# Cookie key for authentication (optional, auto-generated if not set)
+# AUTH_COOKIE_KEY=your_secure_cookie_key_here
+
+# =============================================================================
+# Development Configuration
+# =============================================================================
+
+# Debug mode (set to true for development)
+# DEBUG=false
+
+# Log level (DEBUG, INFO, WARNING, ERROR)
+# LOG_LEVEL=INFO
+
+# =============================================================================
+# How to get API keys:
+# =============================================================================
+
+# OpenRouter API Key:
+# 1. Go to https://openrouter.ai/
+# 2. Sign up for an account
+# 3. Go to API Keys section
+# 4. Create a new API key
+# 5. Copy the key and paste it above
+
+# OpenAI API Key:
+# 1. Go to https://platform.openai.com/
+# 2. Sign up for an account
+# 3. Go to API Keys section
+# 4. Create a new API key
+# 5. Copy the key and paste it above
+
+# =============================================================================
+# Deployment Notes:
+# =============================================================================
+
+# For Streamlit Cloud deployment:
+# 1. Add your API keys to the Streamlit secrets
+# 2. Set APP_URL to your deployed app URL
+# 3. The .env file is not used in deployment 

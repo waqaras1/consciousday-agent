@@ -41,6 +41,7 @@ class TestDatabaseManager:
     def test_save_entry(self, db_manager):
         """Test saving an entry"""
         success = db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-01",
             journal="Test journal entry",
             intention="Test intention",
@@ -55,6 +56,7 @@ class TestDatabaseManager:
         """Test retrieving an entry by date"""
         # Save an entry first
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-01",
             journal="Test journal entry",
             intention="Test intention",
@@ -65,7 +67,7 @@ class TestDatabaseManager:
         )
         
         # Retrieve the entry
-        entry = db_manager.get_entry_by_date("2024-01-01")
+        entry = db_manager.get_entry_by_date("test_user", "2024-01-01")
         assert entry is not None
         assert entry['date'] == "2024-01-01"
         assert entry['journal'] == "Test journal entry"
@@ -73,13 +75,14 @@ class TestDatabaseManager:
     
     def test_get_entry_by_date_not_found(self, db_manager):
         """Test retrieving an entry that doesn't exist"""
-        entry = db_manager.get_entry_by_date("2024-01-01")
+        entry = db_manager.get_entry_by_date("test_user", "2024-01-01")
         assert entry is None
     
     def test_get_all_entries(self, db_manager):
         """Test retrieving all entries"""
         # Save multiple entries
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-01",
             journal="Entry 1",
             intention="Intention 1",
@@ -90,6 +93,7 @@ class TestDatabaseManager:
         )
         
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-02",
             journal="Entry 2",
             intention="Intention 2",
@@ -99,7 +103,7 @@ class TestDatabaseManager:
             strategy="Strategy 2"
         )
         
-        entries = db_manager.get_all_entries()
+        entries = db_manager.get_all_entries("test_user")
         assert len(entries) == 2
         assert entries[0]['date'] == "2024-01-02"  # Should be sorted by date DESC
         assert entries[1]['date'] == "2024-01-01"
@@ -108,6 +112,7 @@ class TestDatabaseManager:
         """Test getting available dates"""
         # Save entries
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-01",
             journal="Entry 1",
             intention="Intention 1",
@@ -118,6 +123,7 @@ class TestDatabaseManager:
         )
         
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-02",
             journal="Entry 2",
             intention="Intention 2",
@@ -127,7 +133,7 @@ class TestDatabaseManager:
             strategy="Strategy 2"
         )
         
-        dates = db_manager.get_available_dates()
+        dates = db_manager.get_available_dates("test_user")
         assert len(dates) == 2
         assert "2024-01-01" in dates
         assert "2024-01-02" in dates
@@ -136,6 +142,7 @@ class TestDatabaseManager:
         """Test deleting an entry"""
         # Save an entry first
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-01",
             journal="Test journal entry",
             intention="Test intention",
@@ -146,24 +153,25 @@ class TestDatabaseManager:
         )
         
         # Get the entry to get its ID
-        entry = db_manager.get_entry_by_date("2024-01-01")
+        entry = db_manager.get_entry_by_date("test_user", "2024-01-01")
         entry_id = entry['id']
         
         # Delete the entry
-        success = db_manager.delete_entry(entry_id)
+        success = db_manager.delete_entry("test_user", entry_id)
         assert success is True
         
         # Verify it's deleted
-        entry_after_delete = db_manager.get_entry_by_date("2024-01-01")
+        entry_after_delete = db_manager.get_entry_by_date("test_user", "2024-01-01")
         assert entry_after_delete is None
     
     def test_entry_exists(self, db_manager):
         """Test checking if an entry exists"""
         # Initially no entry exists
-        assert db_manager.entry_exists("2024-01-01") is False
+        assert db_manager.entry_exists("test_user", "2024-01-01") is False
         
         # Save an entry
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-01",
             journal="Test journal entry",
             intention="Test intention",
@@ -174,18 +182,19 @@ class TestDatabaseManager:
         )
         
         # Now entry should exist
-        assert db_manager.entry_exists("2024-01-01") is True
+        assert db_manager.entry_exists("test_user", "2024-01-01") is True
     
     def test_get_database_stats(self, db_manager):
         """Test getting database statistics"""
         # Initially empty database
-        stats = db_manager.get_database_stats()
+        stats = db_manager.get_database_stats("test_user")
         assert stats['total_entries'] == 0
         assert stats['earliest_date'] is None
         assert stats['latest_date'] is None
         
         # Add entries
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-01",
             journal="Entry 1",
             intention="Intention 1",
@@ -196,6 +205,7 @@ class TestDatabaseManager:
         )
         
         db_manager.save_entry(
+            user_id="test_user",
             date="2024-01-02",
             journal="Entry 2",
             intention="Intention 2",
@@ -205,10 +215,45 @@ class TestDatabaseManager:
             strategy="Strategy 2"
         )
         
-        stats = db_manager.get_database_stats()
+        stats = db_manager.get_database_stats("test_user")
         assert stats['total_entries'] == 2
         assert stats['earliest_date'] == "2024-01-01"
         assert stats['latest_date'] == "2024-01-02"
+    
+    def test_user_isolation(self, db_manager):
+        """Test that users can only see their own entries"""
+        # Save entries for two different users
+        db_manager.save_entry(
+            user_id="user1",
+            date="2024-01-01",
+            journal="User 1 entry",
+            intention="User 1 intention",
+            dream="User 1 dream",
+            priorities="User 1 priorities",
+            reflection="User 1 reflection",
+            strategy="User 1 strategy"
+        )
+        
+        db_manager.save_entry(
+            user_id="user2",
+            date="2024-01-01",
+            journal="User 2 entry",
+            intention="User 2 intention",
+            dream="User 2 dream",
+            priorities="User 2 priorities",
+            reflection="User 2 reflection",
+            strategy="User 2 strategy"
+        )
+        
+        # User 1 should only see their own entries
+        user1_entries = db_manager.get_all_entries("user1")
+        assert len(user1_entries) == 1
+        assert user1_entries[0]['journal'] == "User 1 entry"
+        
+        # User 2 should only see their own entries
+        user2_entries = db_manager.get_all_entries("user2")
+        assert len(user2_entries) == 1
+        assert user2_entries[0]['journal'] == "User 2 entry"
 
 if __name__ == "__main__":
     pytest.main([__file__]) 

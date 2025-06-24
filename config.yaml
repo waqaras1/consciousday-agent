@@ -7,7 +7,7 @@ credentials:
     demo:
       email: demo@example.com
       failed_login_attempts: 0
-      logged_in: false
+      logged_in: true
       name: Demo User
       password: $2b$12$MLrGHo0XcjHbzl.7nYZq1.wezrROz2v.wxC66BHrjPfqILEcsYIyu
       role: admin
