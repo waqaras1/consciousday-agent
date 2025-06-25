@@ -8,6 +8,7 @@ from components.forms import create_morning_form
 from components.display import display_ai_insights, display_loading_message, display_success_message, display_error_message, display_welcome_message, display_stats_summary
 from agent.conscious_agent import ConsciousAgent
 from database.db_operations import DatabaseManager
+import logging
 
 def show_home_page():
     """
@@ -55,6 +56,13 @@ def show_home_page():
                 dream=form_data['dream'],
                 priorities=form_data['priorities']
             )
+
+            # Check for AI error in response
+            if ai_response.strip().lower().startswith("error processing inputs:"):
+                display_error_message("Failed to generate AI insights. Please check your internet connection or try again later.")
+                logging.error(f"AI insight generation failed: {ai_response}")
+                st.session_state.ai_response = None
+                return
             
             st.session_state.ai_response = ai_response
             
