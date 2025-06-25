@@ -23,6 +23,7 @@ from views.history import show_history_page
 from agent.conscious_agent import ConsciousAgent
 from database.db_operations import DatabaseManager
 from components.auth import AuthManager
+import logging
 
 # Page configuration
 st.set_page_config(
@@ -315,6 +316,11 @@ def main():
     elif authentication_status is None:
         st.session_state.authentication_status = False
         st.warning('Please enter your username and password')
+
+    # Temporary debug: log secrets to Streamlit Cloud logs
+    logging.info(f"OPENROUTER_API_KEY: {st.secrets.get('OPENROUTER_API_KEY')}")
+    logging.info(f"OPENROUTER_MODEL_NAME: {st.secrets.get('OPENROUTER_MODEL_NAME')}")
+    logging.info(f"OPENROUTER_BASE_URL: {st.secrets.get('OPENROUTER_BASE_URL')}")
 
 if __name__ == "__main__":
     main()
