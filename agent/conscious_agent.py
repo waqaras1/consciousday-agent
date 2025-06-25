@@ -37,25 +37,16 @@ class ConsciousAgent:
     
     def _setup_agent(self):
         """Setup the AI agent with proper configuration"""
-        is_deployed = "STREAMLIT_SERVER_PORT" in os.environ
-
-        if is_deployed:
-            openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY")
-            openai_api_key = st.secrets.get("OPENAI_API_KEY")
-            self.http_referer = st.secrets.get("APP_URL", "https://consciousday-agent.streamlit.app")
-            self.model_name = st.secrets.get("OPENROUTER_MODEL_NAME")
-        else:
-            openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-            openai_api_key = os.getenv('OPENAI_API_KEY')
-            self.http_referer = os.getenv('APP_URL', "http://localhost:8501")
-            self.model_name = os.getenv('OPENROUTER_MODEL_NAME')
+        # Always try st.secrets first, then os.getenv
+        openrouter_api_key = st.secrets.get("OPENROUTER_API_KEY", os.getenv('OPENROUTER_API_KEY'))
+        openai_api_key = st.secrets.get("OPENAI_API_KEY", os.getenv('OPENAI_API_KEY'))
+        self.http_referer = st.secrets.get("APP_URL", os.getenv('APP_URL', "http://localhost:8501"))
+        self.model_name = st.secrets.get("OPENROUTER_MODEL_NAME", os.getenv('OPENROUTER_MODEL_NAME'))
+        self.base_url = st.secrets.get("OPENROUTER_BASE_URL", os.getenv('OPENROUTER_BASE_URL', "https://openrouter.ai/api/v1"))
 
         # Set default model if not specified
         if not self.model_name:
             self.model_name = "openai/gpt-3.5-turbo"
-
-        # Set base URL for OpenRouter
-        self.base_url = os.getenv('OPENROUTER_BASE_URL', "https://openrouter.ai/api/v1")
 
         # Try OpenRouter first, then fallback to OpenAI
         if openrouter_api_key:
